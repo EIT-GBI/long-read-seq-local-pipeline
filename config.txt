@@ -17,3 +17,15 @@ THREADS=8
 MIN_MAPQ=20
 MIN_QUAL=20
 MIN_DEPTH=10    
+
+THREADS_PER_SAMPLE=2
+SAMPLES_PARALLEL=4
+SORT_MEM=512M
+
+FASTQ_PATTERN_R1=(
+  "*_R1*.fastq.gz"
+  "*_R1*.fastq"
+  "*_1.fastq.gz"
+  "*_1.fastq"
+)
+RUN_FASTQC=1
