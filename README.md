@@ -63,9 +63,29 @@ MIN_BASEQ=20
 
 # Coverage threshold for consensus
 COVERAGE_THRESHOLD=10
+
+# Nr of threads for various steps
+THREADS_PER_SAMPLE=2
+
+# Maximum number of samples to process in parallel
+SAMPLES_PARALLEL=4
+
+# Memory for sorting BAM files
+SORT_MEM=512M
+
+# Patterns to identify R1 FASTQ files
+FASTQ_PATTERN_R1=(
+  "*_R1*.fastq.gz"
+  "*_R1*.fastq"
+  "*_1.fastq.gz"
+  "*_1.fastq"
+)
+# Whether to run FastQC on raw reads
+RUN_FASTQC=1
 ```
 
 Then run:
 ```bash
 bash ./run_pipeline.sh
 ``` 
+Pipeline is parallelized with xargs, so multiple samples can be processed simultaneously. All logs and outputs will be saved in the specified output directory.
