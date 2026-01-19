@@ -14,6 +14,7 @@ source config.txt
 QC_DIR="$OUTPUT_DIR/qc"
 FASTQC_DIR="$QC_DIR/fastqc"
 FLAGSTAT_DIR="$QC_DIR/flagstat"
+TRIM_DIR="$OUTPUT_DIR/trimmed"
 
 ALIGN_DIR="$OUTPUT_DIR/alignment"
 BAM_DIR="$ALIGN_DIR/bam"
@@ -23,6 +24,7 @@ BCF_DIR="$VARIANT_DIR/bcf"
 VCF_DIR="$VARIANT_DIR/vcf"
 CSV_DIR="$VARIANT_DIR/csv"
 
+
 CONSENSUS_DIR="$OUTPUT_DIR/consensus"
 
 TMP_DIR="$OUTPUT_DIR/tmp"
@@ -31,6 +33,7 @@ LOG_DIR="$OUTPUT_DIR/logs"
 mkdir -p \
   "$FASTQC_DIR" "$FLAGSTAT_DIR" \
   "$BAM_DIR" \
+  "$TRIM_DIR" \
   "$BCF_DIR" "$VCF_DIR" "$CSV_DIR" \
   "$CONSENSUS_DIR" \
   "$TMP_DIR" "$LOG_DIR"
@@ -96,11 +99,21 @@ process_one() {
   if [[ "$R1_FILE" == *.gz ]]; then gzip -t "$R1_FILE" >>"$LOG" 2>&1; fi
   if [[ "$R2_FILE" == *.gz ]]; then gzip -t "$R2_FILE" >>"$LOG" 2>&1; fi
 
-  # 
+  # trimming first
+  local R1_TRIMMED="$TRIM_DIR/${SAMPLENAME}_R1.trimmed.fastq"
+  local R2_TRIMMED="$TRIM_DIR/${SAMPLENAME}_R2.trimmed.fastq"
+  echo "[INFO] Trimming: $SAMPLENAME"
+  fastp \
+    -w "$THREADS_PER_SAMPLE" \
+    -i "$R1_FILE" -I "$R2_FILE" \
+    -o "${R1_TRIMMED}" -O "${R2_TRIMMED}" \
+    -h "$TRIM_DIR/${SAMPLENAME}.fastp.html" \
+    -j "$TRIM_DIR/${SAMPLENAME}.fastp.json" >>"$LOG" 2>&1
+
   # Pre-alignment QC
   if [[ "$RUN_FASTQC" == "1" ]]; then
     echo "[INFO] FastQC: $SAMPLENAME"
-    fastqc -t "$THREADS_PER_SAMPLE" -o "$FASTQC_DIR" "$R1_FILE" "$R2_FILE" >>"$LOG" 2>&1
+    fastqc -t "$THREADS_PER_SAMPLE" -o "$FASTQC_DIR" "$R1_TRIMMED" "$R2_TRIMMED" >>"$LOG" 2>&1
   fi
 
   # Align -> sorted BAM 
@@ -108,7 +121,7 @@ process_one() {
   local BAM_SORTED="$BAM_DIR/${SAMPLENAME}.sorted.bam"
 
   bwa mem -t "$THREADS_PER_SAMPLE" \
-    "$REFERENCE_GENOME" "$R1_FILE" "$R2_FILE" 2>>"$LOG" \
+    "$REFERENCE_GENOME" "$R1_TRIMMED" "$R2_TRIMMED" 2>>"$LOG" \
   | samtools view -@ "$THREADS_PER_SAMPLE" -bS - 2>>"$LOG" \
   | samtools sort -@ "$THREADS_PER_SAMPLE" -m "$SORT_MEM" \
       -T "$TMP_DIR/${SAMPLENAME}" -o "$BAM_SORTED" - >>"$LOG" 2>&1
@@ -168,7 +181,7 @@ CHROM,POS,REF,ALT,DP,AD(ref,alt),QUAL,FILTER
 # export functions and vars for xargs to find them
 export -f process_one get_sample_name get_r2_path
 export INPUT_DIR OUTPUT_DIR REFERENCE_GENOME THREADS_PER_SAMPLE SAMPLES_PARALLEL MIN_MAPQ MIN_DEPTH MIN_QUAL RUN_FASTQC SORT_MEM
-export QC_DIR FASTQC_DIR FLAGSTAT_DIR ALIGN_DIR BAM_DIR VARIANT_DIR BCF_DIR VCF_DIR CSV_DIR CONSENSUS_DIR TMP_DIR LOG_DIR
+export QC_DIR FASTQC_DIR FLAGSTAT_DIR ALIGN_DIR BAM_DIR VARIANT_DIR BCF_DIR VCF_DIR CSV_DIR CONSENSUS_DIR TMP_DIR LOG_DIR TRIM_DIR
 
 # find R1 files. if glob matches nothing, return error
 shopt -s nullglob
@@ -192,11 +205,13 @@ echo "[INFO] Filters: MIN_MAPQ=$MIN_MAPQ, MIN_DEPTH=$MIN_DEPTH, MIN_QUAL=$MIN_QU
 echo "[INFO] FastQC: RUN_FASTQC=$RUN_FASTQC"
 echo "[INFO] Output layout:"
 echo "  QC:        $QC_DIR"
+echo "  Trimmed:  $TRIM_DIR"
 echo "  Alignment: $ALIGN_DIR"
 echo "  Variants:  $VARIANT_DIR"
 echo "  Consensus: $CONSENSUS_DIR"
 echo "  Logs:      $LOG_DIR"
 echo "  Tmp:       $TMP_DIR"
+
 
 
 # Run across samples in parallel

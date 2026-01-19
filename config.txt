@@ -28,4 +28,5 @@ FASTQ_PATTERN_R1=(
   "*_1.fastq.gz"
   "*_1.fastq"
 )
+
 RUN_FASTQC=1

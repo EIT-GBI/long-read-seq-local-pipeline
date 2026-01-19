@@ -25,13 +25,14 @@ The following tools must be installed and available in `$PATH`:
 - **bwa**
 - **samtools**
 - **bcftools**
+- **fastp**
 - **htslib**
 - **deeptools** (for `bamCoverage`)
 
 ### Recommended installation (Homebrew)
 
 ```bash
-brew install bwa samtools bcftools htslib tabix deeptools
+brew install bwa samtools bcftools fastp htslib tabix deeptools
 ```
 
 
