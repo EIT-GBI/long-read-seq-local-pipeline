@@ -215,7 +215,11 @@ echo "  Tmp:       $TMP_DIR"
 
 
 # Run across samples in parallel
+#printf "%s\n" "${R1_LIST[@]}" \
+#  | xargs -P "$SAMPLES_PARALLEL" -n 1 -I {} bash -lc 'process_one "$@"' _ {}
+
+# Let's try GNU parallel instead
 printf "%s\n" "${R1_LIST[@]}" \
-  | xargs -P "$SAMPLES_PARALLEL" -n 1 -I {} bash -lc 'process_one "$@"' _ {}
+    | parallel -j "$SAMPLES_PARALLEL" --linebuffer process_one {}
 
 echo "[INFO] All samples completed."

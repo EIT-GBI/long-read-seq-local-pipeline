@@ -42,7 +42,7 @@ JSON report: results/trimmed/example4.fastp.json
 HTML report: results/trimmed/example4.fastp.html
 
 fastp -w 2 -i ./data/examples/demo//example4_R1.fastq -I ./data/examples/demo//example4_R2.fastq -o results/trimmed/example4_R1.trimmed.fastq -O results/trimmed/example4_R2.trimmed.fastq -h results/trimmed/example4.fastp.html -j results/trimmed/example4.fastp.json 
-fastp v1.0.1, time used: 2 seconds
+fastp v1.0.1, time used: 1 seconds
 null
 null
 Started analysis of example4_R1.trimmed.fastq
@@ -61,14 +61,14 @@ Approx 60% complete for example4_R1.trimmed.fastq
 Approx 65% complete for example4_R1.trimmed.fastq
 Approx 70% complete for example4_R1.trimmed.fastq
 Approx 75% complete for example4_R1.trimmed.fastq
-Approx 80% complete for example4_R1.trimmed.fastq
 Started analysis of example4_R2.trimmed.fastq
-Approx 85% complete for example4_R1.trimmed.fastq
+Approx 80% complete for example4_R1.trimmed.fastq
 Approx 5% complete for example4_R2.trimmed.fastq
-Approx 90% complete for example4_R1.trimmed.fastq
+Approx 85% complete for example4_R1.trimmed.fastq
 Approx 10% complete for example4_R2.trimmed.fastq
-Approx 95% complete for example4_R1.trimmed.fastq
+Approx 90% complete for example4_R1.trimmed.fastq
 Approx 15% complete for example4_R2.trimmed.fastq
+Approx 95% complete for example4_R1.trimmed.fastq
 Approx 20% complete for example4_R2.trimmed.fastq
 Analysis complete for example4_R1.trimmed.fastq
 Approx 25% complete for example4_R2.trimmed.fastq
@@ -99,7 +99,7 @@ Analysis complete for example4_R2.trimmed.fastq
 [M::mem_pestat] low and high boundaries for proper pairs: (140, 1008)
 [M::mem_pestat] skip orientation RF as there are not enough pairs
 [M::mem_pestat] skip orientation RR as there are not enough pairs
-[M::mem_process_seqs] Processed 66684 reads in 4.365 CPU sec, 2.210 real sec
+[M::mem_process_seqs] Processed 66684 reads in 5.390 CPU sec, 2.739 real sec
 [M::mem_pestat] # candidate unique pairs for (FF, FR, RF, RR): (2, 7449, 0, 2)
 [M::mem_pestat] skip orientation FF as there are not enough pairs
 [M::mem_pestat] analyzing insert size distribution for orientation FR...
@@ -109,10 +109,10 @@ Analysis complete for example4_R2.trimmed.fastq
 [M::mem_pestat] low and high boundaries for proper pairs: (155, 995)
 [M::mem_pestat] skip orientation RF as there are not enough pairs
 [M::mem_pestat] skip orientation RR as there are not enough pairs
-[M::mem_process_seqs] Processed 20986 reads in 1.731 CPU sec, 0.906 real sec
+[M::mem_process_seqs] Processed 20986 reads in 1.683 CPU sec, 1.088 real sec
 [main] Version: 0.7.19-r1273
 [main] CMD: bwa mem -t 2 ./data/reference/GCF_000005845.2_ASM584v2_genomic.fna results/trimmed/example4_R1.trimmed.fastq results/trimmed/example4_R2.trimmed.fastq
-[main] Real time: 3.223 sec; CPU: 6.142 sec
+[main] Real time: 3.957 sec; CPU: 7.131 sec
 [bam_sort_core] merging from 0 files and 2 in-memory blocks...
 [mpileup] 1 samples in 1 input files
 [mpileup] maximum number of reads per input file set to -d 250

@@ -28,13 +28,15 @@ The following tools must be installed and available in `$PATH`:
 - **fastp**
 - **htslib**
 - **deeptools** (for `bamCoverage`)
+- **tabix**
+- **parallel** (GNU parallel)
+
 
 ### Recommended installation (Homebrew)
 
 ```bash
-brew install bwa samtools bcftools fastp htslib tabix deeptools
+brew install bwa samtools bcftools fastp htslib tabix deeptools parallel
 ```
-
 
 ## Usage
 
@@ -89,4 +91,4 @@ Then run:
 ```bash
 bash ./run_pipeline.sh
 ``` 
-Pipeline is parallelized with xargs, so multiple samples can be processed simultaneously. All logs and outputs will be saved in the specified output directory.
+Pipeline is parallelized with GNU parallel or xargs (this is commented out at the moment), so multiple samples can be processed simultaneously. All logs and outputs will be saved in the specified output directory.
