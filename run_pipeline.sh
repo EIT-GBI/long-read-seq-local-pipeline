@@ -126,6 +126,9 @@ process_one() {
   | samtools sort -@ "$THREADS_PER_SAMPLE" -m "$SORT_MEM" \
       -T "$TMP_DIR/${SAMPLENAME}" -o "$BAM_SORTED" - >>"$LOG" 2>&1
 
+  # remove trimmed FASTQ to save space
+  rm -f "$R1_TRIMMED" "$R2_TRIMMED"
+
   samtools index -@ "$THREADS_PER_SAMPLE" "$BAM_SORTED" >>"$LOG" 2>&1
 
   # Post-alignment QC
