@@ -4,13 +4,13 @@
 SAMPLE=sample1
 
 # Input fodler containing fastq files
-INPUT_DIR=./data/examples/demo/
+INPUT_DIR=/Users/cristian.soitu/Data/20012026_VH02427_1_AACYW3_HVNGS/Analysis/fastq_full/
 
 # Output folder to store results
-OUTPUT_DIR=results
+OUTPUT_DIR=/Users/cristian.soitu/Data/20012026_VH02427_1_AACYW3_HVNGS/Analysis/results/
 
 # Reference genome file
-REFERENCE_GENOME=./data/reference/GCF_000005845.2_ASM584v2_genomic.fna
+REFERENCE_GENOME=/Users/cristian.soitu/Data/20012026_VH02427_1_AACYW3_HVNGS/Analysis/reference/MDS42_r24-30.fasta
 
 # Parameters
 THREADS=8
