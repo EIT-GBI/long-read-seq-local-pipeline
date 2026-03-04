@@ -10,7 +10,7 @@ INPUT_DIR=/Users/cristian.soitu/Data/20012026_VH02427_1_AACYW3_HVNGS/Analysis/fa
 OUTPUT_DIR=/Users/cristian.soitu/Data/20012026_VH02427_1_AACYW3_HVNGS/Analysis/results/
 
 # Reference genome file
-REFERENCE_GENOME=/Users/cristian.soitu/Data/20012026_VH02427_1_AACYW3_HVNGS/Analysis/reference/MDS42_r24-30.fasta
+REFERENCE_GENOME=/Users/cristian.soitu/Data/20012026_VH02427_1_AACYW3_HVNGS/Analysis/reference/MDS42_r24-30_27B_SC.fasta
 
 # Parameters
 THREADS=8
@@ -18,7 +18,7 @@ MIN_MAPQ=20
 MIN_QUAL=20
 MIN_DEPTH=10    
 
-THREADS_PER_SAMPLE=2
+THREADS_PER_SAMPLE=4
 SAMPLES_PARALLEL=4
 SORT_MEM=512M
 

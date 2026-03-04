@@ -89,6 +89,10 @@ RUN_FASTQC=1
 
 Then run:
 ```bash
+# Use default config.txt in current directory
 bash ./run_pipeline.sh
-``` 
+
+# Or specify a config file path
+bash ./run_pipeline.sh /path/to/my_config.txt
+```
 Pipeline is parallelized with GNU parallel or xargs (this is commented out at the moment), so multiple samples can be processed simultaneously. All logs and outputs will be saved in the specified output directory.

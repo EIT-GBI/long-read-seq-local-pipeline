@@ -7,8 +7,9 @@
 
 set -euo pipefail
 
-# Load config
-source config.txt
+# Load config (default: config.txt, or pass path as first argument)
+CONFIG_FILE="${1:-config.txt}"
+source "$CONFIG_FILE"
 
 # Output directory layout
 QC_DIR="$OUTPUT_DIR/qc"
