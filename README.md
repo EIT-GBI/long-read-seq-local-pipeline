@@ -35,7 +35,7 @@ The following tools must be installed and available in `$PATH`:
 ### Recommended installation (Homebrew)
 
 ```bash
-brew install bwa samtools bcftools fastp htslib tabixpp dtools parallel
+brew install bwa samtools bcftools fastp htslib tabixpp parallel
 ```
 
 ## Usage
