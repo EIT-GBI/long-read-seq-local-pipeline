@@ -34,6 +34,17 @@ The following tools must be installed and available in `$PATH`:
 
 ### Recommended installation (Homebrew)
 
+Clone the repository locally to the directory where you want your code to be.
+
+```bash
+git clone https://github.com/EIT-GBI/ngs-seq-local-pipeline.git
+cd ngs-seq-local-pipeline
+```
+
+Make sure you have Homebrew installed on your MAC. If not, you can install it with the EIT Self Service portal. 
+
+Then install the required tools with Homebrew:
+
 ```bash
 brew install bwa samtools bcftools fastp htslib tabix deeptools parallel
 ```
@@ -95,4 +106,12 @@ bash ./run_pipeline.sh
 # Or specify a config file path
 bash ./run_pipeline.sh /path/to/my_config.txt
 ```
+I recommend copying the `config.txt` file to your data directory and editing it there. Then specify the path to that config when running the pipeline like in the example above. We plan to update the pipeline from time to time to add more features, so keeping a copy of the config file with the settings you used for each run will be helpful for reproducibility. And your config will not be overwritten every time you do git clone or pull.
+
 Pipeline is parallelized with GNU parallel or xargs (this is commented out at the moment), so multiple samples can be processed simultaneously. All logs and outputs will be saved in the specified output directory.
+
+
+## TO DO:
+- generate bigwig files for coverage visualization in IGV
+- for consensus files add a check to see if there's any coverage at all
+- check if all packages can be indeed installed with homebrew 
