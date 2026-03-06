@@ -46,7 +46,7 @@ Make sure you have Homebrew installed on your MAC. If not, you can install it wi
 Then install the required tools with Homebrew:
 
 ```bash
-brew install bwa samtools bcftools fastp htslib tabix deeptools parallel
+brew install bwa samtools bcftools fastp htslib tabixpp parallel
 ```
 
 ## Usage
