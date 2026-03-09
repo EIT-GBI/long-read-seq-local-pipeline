@@ -28,6 +28,8 @@ CSV_DIR="$VARIANT_DIR/csv"
 
 CONSENSUS_DIR="$OUTPUT_DIR/consensus"
 
+BW_DIR="$OUTPUT_DIR/bigwig"
+
 TMP_DIR="$OUTPUT_DIR/tmp"
 LOG_DIR="$OUTPUT_DIR/logs"
 
@@ -37,6 +39,7 @@ mkdir -p \
   "$TRIM_DIR" \
   "$BCF_DIR" "$VCF_DIR" "$CSV_DIR" \
   "$CONSENSUS_DIR" \
+  "$BW_DIR" \
   "$TMP_DIR" "$LOG_DIR"
 
 
@@ -50,6 +53,14 @@ if [[ ! -f "${REFERENCE_GENOME}.fai" ]]; then
   echo "[INFO] Indexing reference for samtools: $REFERENCE_GENOME"
   samtools faidx "$REFERENCE_GENOME"
 fi
+
+CHROM_SIZES="${REFERENCE_GENOME}.chrom.sizes"
+if [[ ! -f "$CHROM_SIZES" ]]; then
+  echo "[INFO] Generating chrom sizes: $CHROM_SIZES"
+  cut -f1,2 "${REFERENCE_GENOME}.fai" > "$CHROM_SIZES"
+fi
+
+BEDGRAPHTOBIGWIG="$(dirname "$0")/tools/ucsc/bedGraphToBigWig"
 
 # Helpers: sample name and R2 path
 get_sample_name() {
@@ -132,6 +143,14 @@ process_one() {
 
   samtools index -@ "$THREADS_PER_SAMPLE" "$BAM_SORTED" >>"$LOG" 2>&1
 
+  # BigWig via bedgraph
+  echo "[INFO] BigWig: $SAMPLENAME"
+  local BG_TMP="$TMP_DIR/${SAMPLENAME}.bedgraph"
+  bedtools genomecov -ibam "$BAM_SORTED" -bg \
+    | sort -k1,1 -k2,2n > "$BG_TMP"
+  "$BEDGRAPHTOBIGWIG" "$BG_TMP" "$CHROM_SIZES" "$BW_DIR/${SAMPLENAME}.bw" >>"$LOG" 2>&1
+  rm -f "$BG_TMP"
+
   # Post-alignment QC
   samtools flagstat "$BAM_SORTED" > "$FLAGSTAT_DIR/${SAMPLENAME}.flagstat.txt"
 
@@ -186,6 +205,7 @@ CHROM,POS,REF,ALT,DP,AD(ref,alt),QUAL,FILTER
 export -f process_one get_sample_name get_r2_path
 export INPUT_DIR OUTPUT_DIR REFERENCE_GENOME THREADS_PER_SAMPLE SAMPLES_PARALLEL MIN_MAPQ MIN_DEPTH MIN_QUAL RUN_FASTQC SORT_MEM
 export QC_DIR FASTQC_DIR FLAGSTAT_DIR ALIGN_DIR BAM_DIR VARIANT_DIR BCF_DIR VCF_DIR CSV_DIR CONSENSUS_DIR TMP_DIR LOG_DIR TRIM_DIR
+export CHROM_SIZES BEDGRAPHTOBIGWIG
 
 # find R1 files. if glob matches nothing, return error
 shopt -s nullglob
@@ -213,8 +233,10 @@ echo "  Trimmed:  $TRIM_DIR"
 echo "  Alignment: $ALIGN_DIR"
 echo "  Variants:  $VARIANT_DIR"
 echo "  Consensus: $CONSENSUS_DIR"
+echo "  BigWig:    $BW_DIR"
 echo "  Logs:      $LOG_DIR"
 echo "  Tmp:       $TMP_DIR"
+echo
 
 
 

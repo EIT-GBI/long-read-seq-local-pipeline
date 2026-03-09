@@ -27,12 +27,12 @@ The following tools must be installed and available in `$PATH`:
 - **bcftools**
 - **fastp**
 - **htslib**
-- **deeptools** (for `bamCoverage`)
+- **bedtools**
 - **tabix**
 - **parallel** (GNU parallel)
+- **bedGraphToBigWig** (UCSC tool, not available via Homebrew, see instructions below)
 
-
-### Recommended installation (Homebrew)
+## Recommended installation (Homebrew)
 
 Clone the repository locally to the directory where you want your code to be.
 
@@ -46,8 +46,21 @@ Make sure you have Homebrew installed on your MAC. If not, you can install it wi
 Then install the required tools with Homebrew:
 
 ```bash
-brew install bwa samtools bcftools fastp htslib tabixpp parallel
+brew install bwa samtools bcftools fastp htslib tabixpp parallel bedtools
 ```
+
+To generate bigwig files, we also need the UCSC tool 'bedGraphToBigWig'. This is not available via Homebrew, but you can download the precompiled binary for Mac from their website:
+
+```bash
+mkdir -p tools/ucsc
+
+curl -L -o tools/ucsc/bedGraphToBigWig \
+  https://hgdownload.cse.ucsc.edu/admin/exe/macOSX.arm64/bedGraphToBigWig
+
+chmod +x tools/ucsc/bedGraphToBigWig
+```
+
+Alternatively, download the binary and place it in the `tools/ucsc` directory of the repository, then make it executable. The script assumes the path to the tool is `tools/ucsc/bedGraphToBigWig` relative to the script location.
 
 ## Usage
 
@@ -112,6 +125,5 @@ Pipeline is parallelized with GNU parallel or xargs (this is commented out at th
 
 
 ## TO DO:
-- generate bigwig files for coverage visualization in IGV
 - for consensus files add a check to see if there's any coverage at all
 - check if all packages can be indeed installed with homebrew 
