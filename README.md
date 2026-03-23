@@ -1,7 +1,7 @@
 # FASTQ → BAM → Variants Pipeline (BWA / Samtools / BCFtools)
 
-This repo contains a simple bash pipeline for processing paired-end FASTQ files through alignment, variant calling, and consensus generation.  
-It is designed to run locally on MAC OS for now
+This repo contains a simple bash pipeline for processing paired-end FASTQ files through alignment, variant calling, and consensus generation.
+It is designed to run locally on macOS or on Ubuntu.
 
 ## Overview
 
@@ -61,6 +61,43 @@ chmod +x tools/ucsc/bedGraphToBigWig
 ```
 
 Alternatively, download the binary and place it in the `tools/ucsc` directory of the repository, then make it executable. The script assumes the path to the tool is `tools/ucsc/bedGraphToBigWig` relative to the script location.
+
+## Installation on Cluster -> Ubuntu 22.04 LTS
+
+Clone the repository:
+
+```bash
+git clone https://github.com/EIT-GBI/ngs-seq-local-pipeline.git
+cd ngs-seq-local-pipeline
+```
+
+Install the tools via homebrew (Linuxbrew). Because we don't have root access, we will install Homebrew in our home directory:
+
+Create a directory for Linuxbrew, clone the Homebrew repository, create a `brew` command in your PATH.
+```bash
+mkdir -p ~/.linuxbrew
+git clone https://github.com/Homebrew/brew ~/.linuxbrew/Homebrew
+mkdir -p ~/.linuxbrew/bin
+ln -s ~/.linuxbrew/Homebrew/bin/brew ~/.linuxbrew/bin/
+eval "$(/home/username/.linuxbrew/bin/brew shellenv)"
+```
+
+Then install the required tools:
+
+```bash
+brew install bwa samtools bcftools fastp htslib tabixpp parallel bedtools
+```
+
+For **bedGraphToBigWig**, download the Linux x86_64 binary from UCSC:
+
+```bash
+mkdir -p tools/ucsc
+
+curl -L -o tools/ucsc/bedGraphToBigWig \
+  https://hgdownload.cse.ucsc.edu/admin/exe/linux.x86_64/bedGraphToBigWig
+
+chmod +x tools/ucsc/bedGraphToBigWig
+```
 
 ## Usage
 
