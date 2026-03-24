@@ -68,9 +68,38 @@ Alternatively, download the binary and place it in the `tools/ucsc` directory of
 
 ## Installation on Cluster -> Ubuntu 22.04 LTS
 
-We are going to use Spack to install the required tools on the cluster. Instructions to follow.
+We are going to use Spack to install the required tools on the cluster. A description of how to use Spack is available at the link below, but we'll try to abstract away the details and just give you the commands to run to get the tools installed - https://spack.readthedocs.io/en/latest/getting_started.html.
+
+First, clone the Spack repository and set it up:
+
+```bash
+git clone --depth=2 https://github.com/spack/spack.git
+
+# Source the script for your (bash) shell
+. spack/share/spack/setup-env.sh
+```
+
+Spack enviroments are somewhat similar to conda environments. One can create an environment with a specific set of packages and then activate it to use those packages. We have created a Spack environment file for the pipeline with the required tools and their versions specified - `spack.lock`. You can find it in the `spack_env/` directory of the repository. To create and activate the environment, run: 
+
+```bash
+spack env create ngs-pipeline spack_env/spack.lock
+spack env activate ngs-pipeline
+# To check that the tools are available, you can run:
+spack find
+``` 
+[EXTRA]. You will notice that there is also a `spack_env/spack.yaml` file. One could use this file to create the same environment, although the `spack.lock` file is more specific and ensures that the exact versions of the tools are installed. If you want to create the environment from the `spack.yaml` file, run:
+
+```bash
+spack env create ngs-pipeline spack_env/spack.yaml
+spack env activate ngs-pipeline
+```
 
 
+Here we named our environment `ngs-pipeline`, but you can choose any name you like, as long as activate the correct envirnment before running the pipeline. Which brings us to the next point - every time you want to run the pipeline, make sure to activate the Spack environment first with `spack env activate ngs-pipeline`. This will ensure that all the required tools are available in your `$PATH` and the pipeline can run without any issues.
+
+```bash
+spack env activate ngs-pipeline
+bash ./run_pipeline.sh /path/to/my_config.txt
 ```
 
 ## Usage
