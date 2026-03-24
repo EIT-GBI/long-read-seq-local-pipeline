@@ -1,0 +1,19 @@
+# This is a Spack Environment file.
+#
+# It describes a set of packages to be installed, along with
+# configuration settings.
+spack:
+  # add package specs to the `specs` list
+  specs:
+  - samtools
+  - bwa
+  - bcftools
+  - fastp
+  - htslib
+  - parallel
+  - bedtools2
+  - tabix
+  - fastqc
+  view: true
+  concretizer:
+    unify: true
