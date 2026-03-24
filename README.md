@@ -46,16 +46,20 @@ Make sure you have Homebrew installed on your MAC. If not, you can install it wi
 Then install the required tools with Homebrew:
 
 ```bash
-brew install bwa samtools bcftools fastp htslib tabixpp parallel bedtools
+brew install bwa samtools bcftools fastp htslib tabixpp parallel bedtools fastqc
 ```
 
 To generate bigwig files, we also need the UCSC tool 'bedGraphToBigWig'. This is not available via Homebrew, but you can download the precompiled binary for Mac from their website:
 
 ```bash
 mkdir -p tools/ucsc
-
+# if on Mac do:
 curl -L -o tools/ucsc/bedGraphToBigWig \
   https://hgdownload.cse.ucsc.edu/admin/exe/macOSX.arm64/bedGraphToBigWig
+
+# if on Linux do:
+curl -L -o tools/ucsc/bedGraphToBigWig \
+  https://hgdownload.cse.ucsc.edu/admin/exe/linux.x86_64/bedGraphToBigWig
 
 chmod +x tools/ucsc/bedGraphToBigWig
 ```
@@ -64,39 +68,9 @@ Alternatively, download the binary and place it in the `tools/ucsc` directory of
 
 ## Installation on Cluster -> Ubuntu 22.04 LTS
 
-Clone the repository:
+We are going to use Spack to install the required tools on the cluster. Instructions to follow.
 
-```bash
-git clone https://github.com/EIT-GBI/ngs-seq-local-pipeline.git
-cd ngs-seq-local-pipeline
-```
 
-Install the tools via homebrew (Linuxbrew). Because we don't have root access, we will install Homebrew in our home directory:
-
-Create a directory for Linuxbrew, clone the Homebrew repository, create a `brew` command in your PATH.
-```bash
-mkdir -p ~/.linuxbrew
-git clone https://github.com/Homebrew/brew ~/.linuxbrew/Homebrew
-mkdir -p ~/.linuxbrew/bin
-ln -s ~/.linuxbrew/Homebrew/bin/brew ~/.linuxbrew/bin/
-eval "$(/home/username/.linuxbrew/bin/brew shellenv)"
-```
-
-Then install the required tools:
-
-```bash
-brew install bwa samtools bcftools fastp htslib tabixpp parallel bedtools
-```
-
-For **bedGraphToBigWig**, download the Linux x86_64 binary from UCSC:
-
-```bash
-mkdir -p tools/ucsc
-
-curl -L -o tools/ucsc/bedGraphToBigWig \
-  https://hgdownload.cse.ucsc.edu/admin/exe/linux.x86_64/bedGraphToBigWig
-
-chmod +x tools/ucsc/bedGraphToBigWig
 ```
 
 ## Usage
