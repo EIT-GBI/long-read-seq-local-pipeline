@@ -32,7 +32,7 @@ The following tools must be installed and available in `$PATH`:
 - **parallel** (GNU parallel)
 - **bedGraphToBigWig** (UCSC tool, not available via Homebrew, see instructions below)
 
-## :package: Recommended installation (Homebrew)
+## :computer: Local installation (Homebrew)
 
 Clone the repository locally to the directory where you want your code to be.
 
