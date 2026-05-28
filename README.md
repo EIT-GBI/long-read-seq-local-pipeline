@@ -1,9 +1,9 @@
-# FASTQ → BAM → Variants Pipeline (BWA / Samtools / BCFtools)
+# :dna: FASTQ → BAM → Variants Pipeline (BWA / Samtools / BCFtools)
 
 This repo contains a simple bash pipeline for processing paired-end FASTQ files through alignment, variant calling, and consensus generation.
 It is designed to run locally on macOS or on Ubuntu.
 
-## Overview
+## :mag: Overview
 
 For each paired-end sample (`*_R1*.fastq` / `*_R2*.fastq`), the pipeline performs:
 
@@ -18,7 +18,7 @@ For each paired-end sample (`*_R1*.fastq` / `*_R2*.fastq`), the pipeline perform
    - BigWig coverage file (for IGV)
 
 
-## Requirements
+## :hammer: Requirements
 
 The following tools must be installed and available in `$PATH`:
 
@@ -32,7 +32,7 @@ The following tools must be installed and available in `$PATH`:
 - **parallel** (GNU parallel)
 - **bedGraphToBigWig** (UCSC tool, not available via Homebrew, see instructions below)
 
-## Recommended installation (Homebrew)
+## :package: Recommended installation (Homebrew)
 
 Clone the repository locally to the directory where you want your code to be.
 
@@ -68,7 +68,7 @@ chmod +x tools/ucsc/bedGraphToBigWig
 
 Alternatively, download the binary and place it in the `tools/ucsc` directory of the repository, then make it executable. The script assumes the path to the tool is `tools/ucsc/bedGraphToBigWig` relative to the script location.
 
-## Installation on Cluster -> Ubuntu 22.04 LTS
+## :cloud: Installation on Cluster -> Ubuntu 22.04 LTS
 
 We are going to use Spack to install the required tools on the cluster. A description of how to use Spack is available at the link below, but we'll try to abstract away the details and just give you the commands to run to get the tools installed - https://spack.readthedocs.io/en/latest/getting_started.html.
 
@@ -104,7 +104,7 @@ spack env activate ngs-pipeline
 bash ./run_pipeline.sh /path/to/my_config.txt
 ```
 
-## Usage
+## :running: How to run the pipeline
 
 Add info about the pipeline in config.txt:
 
@@ -166,6 +166,5 @@ I recommend copying the `config.txt` file to your data directory and editing it 
 Pipeline is parallelized with GNU parallel or xargs (this is commented out at the moment), so multiple samples can be processed simultaneously. All logs and outputs will be saved in the specified output directory.
 
 
-## TO DO:
+## :clipboard: TO DO:
 - for consensus files add a check to see if there's any coverage at all
-- check if all packages can be indeed installed with homebrew 
