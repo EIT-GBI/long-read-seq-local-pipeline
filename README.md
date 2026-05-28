@@ -49,18 +49,20 @@ Then install the required tools with Homebrew:
 brew install bwa samtools bcftools fastp htslib tabixpp parallel bedtools fastqc
 ```
 
-To generate bigwig files, we also need the UCSC tool 'bedGraphToBigWig'. This is not available via Homebrew, but you can download the precompiled binary for Mac from their website:
+To generate bigwig files, we also need the UCSC tool 'bedGraphToBigWig'. This is not available via Homebrew, but you can download the precompiled binary from their website.
 
+If you are working on a Mac do:
 ```bash
 mkdir -p tools/ucsc
-# if on Mac do:
 curl -L -o tools/ucsc/bedGraphToBigWig \
   https://hgdownload.cse.ucsc.edu/admin/exe/macOSX.arm64/bedGraphToBigWig
+chmod +x tools/ucsc/bedGraphToBigWig
+```
 
-# if on Linux do:
+If you are working on Linux do:
+```bash
 curl -L -o tools/ucsc/bedGraphToBigWig \
   https://hgdownload.cse.ucsc.edu/admin/exe/linux.x86_64/bedGraphToBigWig
-
 chmod +x tools/ucsc/bedGraphToBigWig
 ```
 
