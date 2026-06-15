@@ -110,31 +110,31 @@ Add info about the pipeline in config.txt:
 
 ```text
 # Sample name
-SAMPLENAME=sample1
+SAMPLE=sample1
 
-# Input directory for FASTQ files
+# Input folder containing FASTQ files
 INPUT_DIR=/path/to/fastq/files
 
-# Output directory
+# Output folder to store results
 OUTPUT_DIR=/path/to/output/directory
 
 # Reference genome FASTA
-REFERENCE=/path/to/reference/genome.fasta
+REFERENCE_GENOME=/path/to/reference/genome.fasta
 
 # Number of threads
-THREADS=4
+THREADS=8
 
 # Minimum mapping quality
 MIN_MAPQ=20
 
 # Minimum base quality
-MIN_BASEQ=20
+MIN_QUAL=20
 
-# Coverage threshold for consensus
-COVERAGE_THRESHOLD=10
+# Minimum depth (coverage threshold for consensus)
+MIN_DEPTH=10
 
-# Nr of threads for various steps
-THREADS_PER_SAMPLE=2
+# Nr of threads per sample
+THREADS_PER_SAMPLE=4
 
 # Maximum number of samples to process in parallel
 SAMPLES_PARALLEL=4
@@ -149,6 +149,7 @@ FASTQ_PATTERN_R1=(
   "*_1.fastq.gz"
   "*_1.fastq"
 )
+
 # Whether to run FastQC on raw reads
 RUN_FASTQC=1
 ```
