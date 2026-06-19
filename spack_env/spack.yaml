@@ -6,14 +6,18 @@ spack:
   # add package specs to the `specs` list
   specs:
   - samtools
-  - bwa
+  - minimap2
   - bcftools
-  - fastp
   - htslib
   - parallel
   - bedtools2
   - tabix
-  - fastqc
+  # NOTE: long-read QC (NanoPlot) and read filtering (chopper) are not
+  # reliably packaged in spack. Install them alongside this env, e.g.:
+  #   pip install NanoPlot
+  #   conda install -c bioconda chopper      # or: cargo install chopper
+  # If chopper is unavailable, `filtlong` (spack-packaged) is a fallback,
+  # but the pipeline streams reads via stdin and expects chopper.
   view: true
   concretizer:
     unify: true

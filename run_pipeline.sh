@@ -1,9 +1,12 @@
 #!/usr/bin/env bash
-# Multi-sample Illumina pipeline (QC -> align -> sort/index -> call/filter -> export -> consensus)
-# - Parallelizes ACROSS samples with xargs -P
-# - Uses THREADS_PER_SAMPLE WITHIN each sample for bwa/samtools/fastqc
+# Multi-sample long-read pipeline (filter -> align -> sort/index -> QC -> call/filter -> export -> consensus)
+# Supports Nanopore (FASTQ) and PacBio HiFi (unaligned BAM or FASTQ).
+# - Parallelizes ACROSS samples with GNU parallel
+# - Uses THREADS_PER_SAMPLE WITHIN each sample for minimap2/samtools/chopper
 # - Organizes outputs into qc/, alignment/, variants/, consensus/, logs/, tmp/
 #
+# Reads are single-end (no R1/R2). uBAM input is streamed through samtools fastq
+# into the aligner without writing an intermediate FASTQ.
 
 set -euo pipefail
 
@@ -11,11 +14,26 @@ set -euo pipefail
 CONFIG_FILE="${1:-config.txt}"
 source "$CONFIG_FILE"
 
+# Platform -> minimap2 preset + bcftools mpileup profile
+case "$PLATFORM" in
+  nanopore)
+    MM2_PRESET="map-ont"
+    MPILEUP_X="ont"
+    ;;
+  pacbio-hifi)
+    MM2_PRESET="map-hifi"
+    MPILEUP_X="pacbio-ccs"
+    ;;
+  *)
+    echo "ERROR: PLATFORM must be 'nanopore' or 'pacbio-hifi' (got '$PLATFORM')"
+    exit 1
+    ;;
+esac
+
 # Output directory layout
 QC_DIR="$OUTPUT_DIR/qc"
-FASTQC_DIR="$QC_DIR/fastqc"
+NANOPLOT_DIR="$QC_DIR/nanoplot"
 FLAGSTAT_DIR="$QC_DIR/flagstat"
-TRIM_DIR="$OUTPUT_DIR/trimmed"
 
 ALIGN_DIR="$OUTPUT_DIR/alignment"
 BAM_DIR="$ALIGN_DIR/bam"
@@ -25,7 +43,6 @@ BCF_DIR="$VARIANT_DIR/bcf"
 VCF_DIR="$VARIANT_DIR/vcf"
 CSV_DIR="$VARIANT_DIR/csv"
 
-
 CONSENSUS_DIR="$OUTPUT_DIR/consensus"
 
 BW_DIR="$OUTPUT_DIR/bigwig"
@@ -34,19 +51,19 @@ TMP_DIR="$OUTPUT_DIR/tmp"
 LOG_DIR="$OUTPUT_DIR/logs"
 
 mkdir -p \
-  "$FASTQC_DIR" "$FLAGSTAT_DIR" \
+  "$NANOPLOT_DIR" "$FLAGSTAT_DIR" \
   "$BAM_DIR" \
-  "$TRIM_DIR" \
   "$BCF_DIR" "$VCF_DIR" "$CSV_DIR" \
   "$CONSENSUS_DIR" \
   "$BW_DIR" \
   "$TMP_DIR" "$LOG_DIR"
 
-
 # Reference indexing (once)
-if [[ ! -f "${REFERENCE_GENOME}.bwt" ]]; then
-  echo "[INFO] Indexing reference for bwa: $REFERENCE_GENOME"
-  bwa index "$REFERENCE_GENOME"
+# minimap2 index is preset-specific, so name it accordingly.
+MMI="${REFERENCE_GENOME}.${MM2_PRESET}.mmi"
+if [[ ! -f "$MMI" ]]; then
+  echo "[INFO] Building minimap2 index ($MM2_PRESET): $MMI"
+  minimap2 -x "$MM2_PRESET" -d "$MMI" "$REFERENCE_GENOME"
 fi
 
 if [[ ! -f "${REFERENCE_GENOME}.fai" ]]; then
@@ -62,86 +79,66 @@ fi
 
 BEDGRAPHTOBIGWIG="$(dirname "$0")/tools/ucsc/bedGraphToBigWig"
 
-# Helpers: sample name and R2 path
+# Helper: derive sample name by stripping read/archive extensions
 get_sample_name() {
-  local r1="$1"
   local b
-  b="$(basename "$r1")"
-  b="${b%%_R1*}"
-  b="${b%%_1.fastq*}"
-  b="${b%%_1.fq*}"
+  b="$(basename "$1")"
+  b="${b%.gz}"
+  b="${b%.fastq}"
+  b="${b%.fq}"
+  b="${b%.bam}"
   echo "$b"
-}
-
-get_r2_path() {
-  local r1="$1"
-  local r2="$r1"
-  if [[ "$r1" == *"_R1"* ]]; then
-    r2="${r2/_R1/_R2}"
-  elif [[ "$r1" == *"_1.fastq.gz"* ]]; then
-    r2="${r2/_1.fastq.gz/_2.fastq.gz}"
-  elif [[ "$r1" == *"_1.fastq"* ]]; then
-    r2="${r2/_1.fastq/_2.fastq}"
-  elif [[ "$r1" == *"_1.fq.gz"* ]]; then
-    r2="${r2/_1.fq.gz/_2.fq.gz}"
-  elif [[ "$r1" == *"_1.fq"* ]]; then
-    r2="${r2/_1.fq/_2.fq}"
-  fi
-  echo "$r2"
 }
 
 # Process one sample function
 process_one() {
-  local R1_FILE="$1"
-  local SAMPLENAME R2_FILE LOG
-  SAMPLENAME="$(get_sample_name "$R1_FILE")"
-  R2_FILE="$(get_r2_path "$R1_FILE")"
+  local INPUT_FILE="$1"
+  local SAMPLENAME LOG
+  SAMPLENAME="$(get_sample_name "$INPUT_FILE")"
   LOG="$LOG_DIR/${SAMPLENAME}.log"
 
-  if [[ ! -f "$R2_FILE" ]]; then
-    echo "[WARN] Missing R2 for '$SAMPLENAME': $R2_FILE (skipping)"
-    return 0
-  fi
-
   echo "[INFO] ===== Sample: $SAMPLENAME ====="
-  echo "[INFO] R1: $R1_FILE / R2: $R2_FILE"
+  echo "[INFO] Input: $INPUT_FILE"
   echo "[INFO] Log: $LOG"
 
-  # Basic gzip integrity checks
-  if [[ "$R1_FILE" == *.gz ]]; then gzip -t "$R1_FILE" >>"$LOG" 2>&1; fi
-  if [[ "$R2_FILE" == *.gz ]]; then gzip -t "$R2_FILE" >>"$LOG" 2>&1; fi
+  # Build a reads-producing command depending on input type.
+  # uBAM -> samtools fastq (streamed); FASTQ -> cat. Either way piped to chopper.
+  local -a READS_CMD
+  case "$INPUT_FILE" in
+    *.bam)
+      echo "[INFO] uBAM input; extracting reads with samtools fastq (no intermediate FASTQ)"
+      READS_CMD=(samtools fastq -@ "$THREADS_PER_SAMPLE" "$INPUT_FILE")
+      ;;
+    *.fastq|*.fq|*.fastq.gz|*.fq.gz)
+      READS_CMD=(cat "$INPUT_FILE")
+      ;;
+    *)
+      echo "[WARN] Unrecognized input type for '$SAMPLENAME': $INPUT_FILE (skipping)"
+      return 0
+      ;;
+  esac
 
-  # trimming first
-  local R1_TRIMMED="$TRIM_DIR/${SAMPLENAME}_R1.trimmed.fastq"
-  local R2_TRIMMED="$TRIM_DIR/${SAMPLENAME}_R2.trimmed.fastq"
-  echo "[INFO] Trimming: $SAMPLENAME"
-  fastp \
-    -w "$THREADS_PER_SAMPLE" \
-    -i "$R1_FILE" -I "$R2_FILE" \
-    -o "${R1_TRIMMED}" -O "${R2_TRIMMED}" \
-    -h "$TRIM_DIR/${SAMPLENAME}.fastp.html" \
-    -j "$TRIM_DIR/${SAMPLENAME}.fastp.json" >>"$LOG" 2>&1
+  # Basic gzip integrity check for gzipped FASTQ
+  if [[ "$INPUT_FILE" == *.gz ]]; then gzip -t "$INPUT_FILE" >>"$LOG" 2>&1; fi
 
-  # Pre-alignment QC
-  if [[ "$RUN_FASTQC" == "1" ]]; then
-    echo "[INFO] FastQC: $SAMPLENAME"
-    fastqc -t "$THREADS_PER_SAMPLE" -o "$FASTQC_DIR" "$R1_TRIMMED" "$R2_TRIMMED" >>"$LOG" 2>&1
-  fi
-
-  # Align -> sorted BAM 
-  echo "[INFO] Align + sorting: $SAMPLENAME"
+  # Filter -> align -> sort, fully streamed (no intermediate FASTQ on disk)
+  echo "[INFO] Filter + align + sort: $SAMPLENAME (platform=$PLATFORM, preset=$MM2_PRESET)"
   local BAM_SORTED="$BAM_DIR/${SAMPLENAME}.sorted.bam"
 
-  bwa mem -t "$THREADS_PER_SAMPLE" \
-    "$REFERENCE_GENOME" "$R1_TRIMMED" "$R2_TRIMMED" 2>>"$LOG" \
-  | samtools view -@ "$THREADS_PER_SAMPLE" -bS - 2>>"$LOG" \
+  "${READS_CMD[@]}" 2>>"$LOG" \
+  | chopper -q "$MIN_READ_QUAL" -l "$MIN_READ_LEN" --threads "$THREADS_PER_SAMPLE" 2>>"$LOG" \
+  | minimap2 -a -x "$MM2_PRESET" -t "$THREADS_PER_SAMPLE" "$MMI" - 2>>"$LOG" \
   | samtools sort -@ "$THREADS_PER_SAMPLE" -m "$SORT_MEM" \
       -T "$TMP_DIR/${SAMPLENAME}" -o "$BAM_SORTED" - >>"$LOG" 2>&1
 
-  # remove trimmed FASTQ to save space
-  rm -f "$R1_TRIMMED" "$R2_TRIMMED"
-
   samtools index -@ "$THREADS_PER_SAMPLE" "$BAM_SORTED" >>"$LOG" 2>&1
+
+  # Long-read QC (alignment-based, so no FASTQ needed)
+  if [[ "$RUN_NANOPLOT" == "1" ]]; then
+    echo "[INFO] NanoPlot: $SAMPLENAME"
+    NanoPlot -t "$THREADS_PER_SAMPLE" --bam "$BAM_SORTED" \
+      -o "$NANOPLOT_DIR/$SAMPLENAME" -p "${SAMPLENAME}_" >>"$LOG" 2>&1
+  fi
 
   # BigWig via bedgraph
   echo "[INFO] BigWig: $SAMPLENAME"
@@ -154,11 +151,14 @@ process_one() {
   # Post-alignment QC
   samtools flagstat "$BAM_SORTED" > "$FLAGSTAT_DIR/${SAMPLENAME}.flagstat.txt"
 
-  # Variant calling + filtering (haploid)
+  # Variant calling + filtering (haploid).
+  # NOTE: bcftools' model is short-read oriented; -X tunes indel/error params per
+  # platform, but expect noisier indels than a dedicated long-read caller (Clair3/Medaka).
   echo "[INFO] Call/filter: $SAMPLENAME"
   local BCF_OUT="$BCF_DIR/${SAMPLENAME}.calls.bcf"
 
   bcftools mpileup \
+    -X "$MPILEUP_X" \
     -Ou \
     -f "$REFERENCE_GENOME" \
     -q "$MIN_MAPQ" \
@@ -181,7 +181,6 @@ process_one() {
   bcftools view -Oz -o "$VCFGZ" "$BCF_OUT" >>"$LOG" 2>&1
   tabix -p vcf "$VCFGZ" >>"$LOG" 2>&1
 
-  
   # Legacy-friendly CSV
   echo "[INFO] Export CSV: $SAMPLENAME"
   local CSV_OUT="$CSV_DIR/${SAMPLENAME}.calls.csv"
@@ -201,35 +200,37 @@ CHROM,POS,REF,ALT,DP,AD(ref,alt),QUAL,FILTER
   echo "[INFO] Done: $SAMPLENAME"
 }
 
-# export functions and vars for xargs to find them
-export -f process_one get_sample_name get_r2_path
-export INPUT_DIR OUTPUT_DIR REFERENCE_GENOME THREADS_PER_SAMPLE SAMPLES_PARALLEL MIN_MAPQ MIN_DEPTH MIN_QUAL RUN_FASTQC SORT_MEM
-export QC_DIR FASTQC_DIR FLAGSTAT_DIR ALIGN_DIR BAM_DIR VARIANT_DIR BCF_DIR VCF_DIR CSV_DIR CONSENSUS_DIR BW_DIR TMP_DIR LOG_DIR TRIM_DIR BW_DIR
+# export functions and vars for parallel to find them
+export -f process_one get_sample_name
+export INPUT_DIR OUTPUT_DIR REFERENCE_GENOME THREADS_PER_SAMPLE SAMPLES_PARALLEL MIN_MAPQ MIN_DEPTH MIN_QUAL RUN_NANOPLOT SORT_MEM
+export PLATFORM MM2_PRESET MPILEUP_X MMI MIN_READ_LEN MIN_READ_QUAL
+export QC_DIR NANOPLOT_DIR FLAGSTAT_DIR ALIGN_DIR BAM_DIR VARIANT_DIR BCF_DIR VCF_DIR CSV_DIR CONSENSUS_DIR BW_DIR TMP_DIR LOG_DIR
 export CHROM_SIZES BEDGRAPHTOBIGWIG
 
-# find R1 files. if glob matches nothing, return error
+# find input files. if glob matches nothing, return error
 shopt -s nullglob
 
-R1_LIST=()
-for pat in "${FASTQ_PATTERN_R1[@]}"; do
+INPUT_LIST=()
+for pat in "${INPUT_PATTERN[@]}"; do
   for f in "$INPUT_DIR"/$pat; do
-    R1_LIST+=("$f")
+    INPUT_LIST+=("$f")
   done
 done
 
-if [[ "${#R1_LIST[@]}" -eq 0 ]]; then
-  echo "ERROR: No R1 FASTQ files found in '$INPUT_DIR' with patterns:"
-  printf '  - %s\n' "${FASTQ_PATTERN_R1[@]}"
+if [[ "${#INPUT_LIST[@]}" -eq 0 ]]; then
+  echo "ERROR: No input reads found in '$INPUT_DIR' with patterns:"
+  printf '  - %s\n' "${INPUT_PATTERN[@]}"
   exit 1
 fi
 
-echo "[INFO] Found ${#R1_LIST[@]} R1 files in $INPUT_DIR"
+echo "[INFO] Found ${#INPUT_LIST[@]} input files in $INPUT_DIR"
+echo "[INFO] Platform: PLATFORM=$PLATFORM (preset=$MM2_PRESET, mpileup -X $MPILEUP_X)"
 echo "[INFO] Parallel: SAMPLES_PARALLEL=$SAMPLES_PARALLEL, THREADS_PER_SAMPLE=$THREADS_PER_SAMPLE"
-echo "[INFO] Filters: MIN_MAPQ=$MIN_MAPQ, MIN_DEPTH=$MIN_DEPTH, MIN_QUAL=$MIN_QUAL"
-echo "[INFO] FastQC: RUN_FASTQC=$RUN_FASTQC"
+echo "[INFO] Read filter: MIN_READ_LEN=$MIN_READ_LEN, MIN_READ_QUAL=$MIN_READ_QUAL"
+echo "[INFO] Variant filters: MIN_MAPQ=$MIN_MAPQ, MIN_DEPTH=$MIN_DEPTH, MIN_QUAL=$MIN_QUAL"
+echo "[INFO] NanoPlot: RUN_NANOPLOT=$RUN_NANOPLOT"
 echo "[INFO] Output layout:"
 echo "  QC:        $QC_DIR"
-echo "  Trimmed:  $TRIM_DIR"
 echo "  Alignment: $ALIGN_DIR"
 echo "  Variants:  $VARIANT_DIR"
 echo "  Consensus: $CONSENSUS_DIR"
@@ -238,14 +239,8 @@ echo "  Logs:      $LOG_DIR"
 echo "  Tmp:       $TMP_DIR"
 echo
 
-
-
 # Run across samples in parallel
-#printf "%s\n" "${R1_LIST[@]}" \
-#  | xargs -P "$SAMPLES_PARALLEL" -n 1 -I {} bash -lc 'process_one "$@"' _ {}
-
-# Let's try GNU parallel instead
-printf "%s\n" "${R1_LIST[@]}" \
+printf "%s\n" "${INPUT_LIST[@]}" \
     | parallel -j "$SAMPLES_PARALLEL" --linebuffer process_one {}
 
 echo "[INFO] All samples completed."

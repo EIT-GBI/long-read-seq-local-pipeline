@@ -1,31 +1,44 @@
-# :dna: FASTQ → BAM → Variants Pipeline (BWA / Samtools / BCFtools)
+# :dna: Long-read → BAM → Variants Pipeline (minimap2 / Samtools / BCFtools)
 
-This repo contains a simple bash pipeline for processing paired-end FASTQ files through alignment, variant calling, and consensus generation.
+This repo contains a simple bash pipeline for processing **long-read** sequencing data
+(Oxford Nanopore or PacBio HiFi) through alignment, variant calling, and consensus generation.
 It is designed to run locally on macOS or on Ubuntu.
 
 ## :mag: Overview
 
-For each paired-end sample (`*_R1*.fastq` / `*_R2*.fastq`), the pipeline performs:
+Reads are single-end. Set `PLATFORM` in the config to `nanopore` or `pacbio-hifi`; this
+selects the minimap2 preset (`map-ont` / `map-hifi`) and the bcftools mpileup profile
+(`ont` / `pacbio-ccs`). Input can be FASTQ, or — for PacBio HiFi — an unaligned BAM (uBAM)
+straight off CCS, which is streamed through `samtools fastq` into the aligner without
+writing an intermediate FASTQ.
 
-1. Read alignment with **BWA MEM**
-2. BAM conversion, sorting, and indexing (**samtools**)
-3. Alignment statistics (`samtools flagstat`)
-4. Variant calling (**bcftools mpileup + call**, haploid)
-5. Generation of:
+For each sample (`*.fastq[.gz]`, `*.fq[.gz]`, or `*.bam`), the pipeline performs:
+
+1. Read length/quality filtering with **chopper**
+2. Read alignment with **minimap2** (platform preset)
+3. BAM sorting and indexing (**samtools**)
+4. Read/alignment QC with **NanoPlot** and stats (`samtools flagstat`)
+5. Variant calling (**bcftools mpileup + call**, haploid, platform-tuned via `-X`)
+6. Generation of:
    - BCF and indexed VCF
    - CSV summary of variants
    - Consensus FASTA
    - BigWig coverage file (for IGV)
+
+> **Note:** bcftools' model is short-read oriented. The `-X` profile tunes indel/error
+> parameters per platform, but for production long-read calling consider a dedicated
+> caller (Clair3, Medaka, or DeepVariant for HiFi).
 
 
 ## :hammer: Requirements
 
 The following tools must be installed and available in `$PATH`:
 
-- **bwa**
+- **minimap2**
 - **samtools**
 - **bcftools**
-- **fastp**
+- **chopper** (long-read filtering; bioconda or `cargo install chopper`)
+- **NanoPlot** (long-read QC; `pip install NanoPlot`)
 - **htslib**
 - **bedtools**
 - **tabix**
@@ -46,7 +59,10 @@ Make sure you have Homebrew installed on your MAC. If not, you can install it wi
 Then install the required tools with Homebrew:
 
 ```bash
-brew install bwa samtools bcftools fastp htslib tabixpp parallel bedtools fastqc
+brew install minimap2 samtools bcftools htslib tabixpp parallel bedtools
+# chopper and NanoPlot are not in Homebrew:
+pip install NanoPlot
+brew install chopper   # or: conda install -c bioconda chopper / cargo install chopper
 ```
 
 To generate bigwig files, we also need the UCSC tool 'bedGraphToBigWig'. This is not available via Homebrew, but you can download the precompiled binary from their website.
@@ -61,6 +77,7 @@ chmod +x tools/ucsc/bedGraphToBigWig
 
 If you are working on Linux do:
 ```bash
+mkdir -p tools/ucsc
 curl -L -o tools/ucsc/bedGraphToBigWig \
   https://hgdownload.cse.ucsc.edu/admin/exe/linux.x86_64/bedGraphToBigWig
 chmod +x tools/ucsc/bedGraphToBigWig
@@ -96,6 +113,12 @@ spack env create ngs-pipeline spack_env/spack.yaml
 spack env activate ngs-pipeline
 ```
 
+> **Note (long-read tools):** `spack.lock` is from the previous short-read pipeline and is
+> now stale — regenerate it (`spack concretize -f` in the activated env) after updating
+> `spack.yaml`. Also, **chopper** and **NanoPlot** are not reliably packaged in spack;
+> install them separately (`pip install NanoPlot`; `conda install -c bioconda chopper` or
+> `cargo install chopper`). `filtlong` is a spack-packaged fallback filter if needed.
+
 
 Here we named our environment `ngs-pipeline`, but you can choose any name you like, as long as activate the correct envirnment before running the pipeline. Which brings us to the next point - every time you want to run the pipeline, make sure to activate the Spack environment first with `spack env activate ngs-pipeline`. This will ensure that all the required tools are available in your `$PATH` and the pipeline can run without any issues.
 
@@ -112,8 +135,11 @@ Add info about the pipeline in config.txt:
 # Sample name
 SAMPLE=sample1
 
-# Input folder containing FASTQ files
-INPUT_DIR=/path/to/fastq/files
+# Sequencing platform: nanopore | pacbio-hifi
+PLATFORM=nanopore
+
+# Input folder containing reads (FASTQ, or uBAM for PacBio HiFi)
+INPUT_DIR=/path/to/reads
 
 # Output folder to store results
 OUTPUT_DIR=/path/to/output/directory
@@ -133,6 +159,10 @@ MIN_QUAL=20
 # Minimum depth (coverage threshold for consensus)
 MIN_DEPTH=10
 
+# Long-read pre-alignment filtering (chopper)
+MIN_READ_LEN=1000   # drop reads shorter than this (bp)
+MIN_READ_QUAL=10    # drop reads with mean quality below this (Phred)
+
 # Nr of threads per sample
 THREADS_PER_SAMPLE=4
 
@@ -142,16 +172,17 @@ SAMPLES_PARALLEL=4
 # Memory for sorting BAM files
 SORT_MEM=512M
 
-# Patterns to identify R1 FASTQ files
-FASTQ_PATTERN_R1=(
-  "*_R1*.fastq.gz"
-  "*_R1*.fastq"
-  "*_1.fastq.gz"
-  "*_1.fastq"
+# Patterns to identify input read files (single-end long reads + uBAM)
+INPUT_PATTERN=(
+  "*.fastq.gz"
+  "*.fastq"
+  "*.fq.gz"
+  "*.fq"
+  "*.bam"
 )
 
-# Whether to run FastQC on raw reads
-RUN_FASTQC=1
+# Whether to run NanoPlot QC
+RUN_NANOPLOT=1
 ```
 
 Then run:
@@ -164,7 +195,7 @@ bash ./run_pipeline.sh /path/to/my_config.txt
 ```
 I recommend copying the `config.txt` file to your data directory and editing it there. Then specify the path to that config when running the pipeline like in the example above. We plan to update the pipeline from time to time to add more features, so keeping a copy of the config file with the settings you used for each run will be helpful for reproducibility. And your config will not be overwritten every time you do git clone or pull.
 
-Pipeline is parallelized with GNU parallel or xargs (this is commented out at the moment), so multiple samples can be processed simultaneously. All logs and outputs will be saved in the specified output directory.
+Pipeline is parallelized across samples with GNU parallel, so multiple samples can be processed simultaneously. All logs and outputs will be saved in the specified output directory.
 
 
 ## :clipboard: TO DO:
