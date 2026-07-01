@@ -1,23 +1,23 @@
 # Add info about your sample
 
 # Sample name
-SAMPLE=sample1
+SAMPLE=Daniel_B8-35cyc_bc2018
 
 # Sequencing platform: nanopore | pacbio-hifi
 #   nanopore     -> minimap2 preset map-ont,  bcftools mpileup -X ont
 #   pacbio-hifi  -> minimap2 preset map-hifi, bcftools mpileup -X pacbio-ccs
-PLATFORM=nanopore
+PLATFORM=pacbio-hifi
 
 # Input folder containing reads.
 #   nanopore     -> FASTQ (.fastq/.fq[.gz])
 #   pacbio-hifi  -> unaligned BAM (.bam) from CCS, or FASTQ
-INPUT_DIR=/Users/cristian.soitu/Data/misc/longread_data/reads/
+INPUT_DIR=/Users/cristian.soitu/Data/KhoaChung/pacbio_154509/1_A01/hifi_reads
 
 # Output folder to store results
-OUTPUT_DIR=/Users/cristian.soitu/Data/misc/longread_data/results/
+OUTPUT_DIR=/Users/cristian.soitu/Data/KhoaChung/pacbio_154509/1_A01/results
 
 # Reference genome file
-REFERENCE_GENOME=/Users/cristian.soitu/Data/misc/longread_data/reference/MDS42_r24-30_27B_SC.fasta
+REFERENCE_GENOME=/Users/cristian.soitu/Data/KhoaChung/mutational_scanning/pFR494_pRT300_rham_wt.fa
 
 # Parameters
 THREADS=8
