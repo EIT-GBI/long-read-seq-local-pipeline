@@ -1,7 +1,7 @@
 # Add info about your sample
 
 # Sample name
-SAMPLE=Daniel_B8-35cyc_bc2018
+SAMPLE=bc2027
 
 # Sequencing platform: nanopore | pacbio-hifi
 #   nanopore     -> minimap2 preset map-ont,  bcftools mpileup -X ont
@@ -11,13 +11,27 @@ PLATFORM=pacbio-hifi
 # Input folder containing reads.
 #   nanopore     -> FASTQ (.fastq/.fq[.gz])
 #   pacbio-hifi  -> unaligned BAM (.bam) from CCS, or FASTQ
-INPUT_DIR=/Users/cristian.soitu/Data/KhoaChung/pacbio_154509/1_A01/hifi_reads
+# INPUT_DIR=/mnt/lustre/shared/instrument-data-testbed/instrument-data-pacbio-revio/r84334_20260624_154509/1_C01/hifi_reads/
+
+# To run only SPECIFIC files instead of scanning INPUT_DIR, either:
+#   a) list them here (absolute or relative paths; may span folders), or
+#   b) pass them on the command line:  run_pipeline.sh config.txt a.bam b.bam
+# Command-line files take precedence; INPUT_FILES takes precedence over INPUT_DIR.
+# Leave empty (or commented) to scan INPUT_DIR with INPUT_PATTERN.
+# INPUT_FILES=(
+#   /mnt/lustre/.../1_A01/hifi_reads/m84334_260624_155232_s1.hifi_reads.bc2018.bam
+#   /mnt/lustre/.../1_C01/hifi_reads/m84334_260624_155232_s1.hifi_reads.bc2019.bam
+# )
+
+INPUT_FILES=(
+  /mnt/lustre/shared/instrument-data-testbed/instrument-data-pacbio-revio/r84334_20260624_154509/1_C01/hifi_reads/m84334_260624_195807_s3.hifi_reads.bc2027.bam
+)
 
 # Output folder to store results
-OUTPUT_DIR=/Users/cristian.soitu/Data/KhoaChung/pacbio_154509/1_A01/results
+OUTPUT_DIR=/mnt/gbi-shared/home/cristian-soitu/data/pacbio/r84334_20260624_154509/bc2027_results/
 
 # Reference genome file
-REFERENCE_GENOME=/Users/cristian.soitu/Data/KhoaChung/mutational_scanning/pFR494_pRT300_rham_wt.fa
+REFERENCE_GENOME=/mnt/gbi-shared/home/cristian-soitu/data/references/plasmids/pFR494_pRT300_rham_wt.fa
 
 # Parameters
 THREADS=8

@@ -59,9 +59,17 @@ container/build.sh --push          # build + push to GHCR
 ```
 
 Override the tag with `IMAGE=ghcr.io/eit-gbi/longread-pipeline:v1 container/build.sh --push`.
-Make the GHCR package **public**, or the cluster needs registry credentials to pull.
 
-Then on the cluster, either flavour works:
+> **GHCR access.** GHCR packages are **private by default**. Both cluster flavours
+> below pull anonymously, so an un-pushed or private image fails with
+> `403 Forbidden` at `https://ghcr.io/token`. Either make the package public
+> (GitHub → Packages → the package → *Package settings* → change visibility to
+> Public), or give Enroot/Apptainer a credential: put a GHCR PAT (scope
+> `read:packages`) in `~/.config/enroot/.credentials` as
+> `machine ghcr.io login <user> password <PAT>`. If you just want to explore, skip
+> all of this and use the registry-free `.sif` from section **A**.
+
+Then on the cluster, either flavour works (image must be pushed + accessible):
 
 ```bash
 # Apptainer: pulls the OCI image and caches a .sif under scratch

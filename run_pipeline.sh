@@ -14,6 +14,11 @@ set -euo pipefail
 CONFIG_FILE="${1:-config.txt}"
 source "$CONFIG_FILE"
 
+# Any args after the config path are treated as explicit input files to run,
+# e.g.:  run_pipeline.sh config.txt /path/a.bam /path/b.bam
+# (set -u safe expansion of a possibly-empty list)
+CLI_FILES=("${@:2}")
+
 # Platform -> minimap2 preset + bcftools mpileup profile
 case "$PLATFORM" in
   nanopore)
@@ -77,7 +82,7 @@ if [[ ! -f "$CHROM_SIZES" ]]; then
   cut -f1,2 "${REFERENCE_GENOME}.fai" > "$CHROM_SIZES"
 fi
 
-BEDGRAPHTOBIGWIG="$(dirname "$0")/tools/ucsc/bedGraphToBigWig"
+BEDGRAPHTOBIGWIG="bedGraphToBigWig"
 
 # Helper: derive sample name by stripping read/archive extensions
 get_sample_name() {
@@ -207,23 +212,43 @@ export PLATFORM MM2_PRESET MPILEUP_X MMI MIN_READ_LEN MIN_READ_QUAL
 export QC_DIR NANOPLOT_DIR FLAGSTAT_DIR ALIGN_DIR BAM_DIR VARIANT_DIR BCF_DIR VCF_DIR CSV_DIR CONSENSUS_DIR BW_DIR TMP_DIR LOG_DIR
 export CHROM_SIZES BEDGRAPHTOBIGWIG
 
-# find input files. if glob matches nothing, return error
+# Decide which files to process. Precedence:
+#   1) files given on the command line   (run_pipeline.sh config.txt a.bam b.bam)
+#   2) INPUT_FILES=( ... ) set in config  (explicit list, absolute or relative)
+#   3) otherwise scan INPUT_DIR with INPUT_PATTERN
+# (set -u safe expansion for the possibly-unset INPUT_FILES array)
 shopt -s nullglob
+INPUT_FILES=(${INPUT_FILES[@]+"${INPUT_FILES[@]}"})
 
 INPUT_LIST=()
-for pat in "${INPUT_PATTERN[@]}"; do
-  for f in "$INPUT_DIR"/$pat; do
-    INPUT_LIST+=("$f")
+if [[ "${#CLI_FILES[@]}" -gt 0 ]]; then
+  INPUT_LIST=("${CLI_FILES[@]}")
+  echo "[INFO] Using ${#INPUT_LIST[@]} file(s) from the command line"
+elif [[ "${#INPUT_FILES[@]}" -gt 0 ]]; then
+  INPUT_LIST=("${INPUT_FILES[@]}")
+  echo "[INFO] Using ${#INPUT_LIST[@]} file(s) from INPUT_FILES in $CONFIG_FILE"
+else
+  for pat in "${INPUT_PATTERN[@]}"; do
+    for f in "$INPUT_DIR"/$pat; do
+      INPUT_LIST+=("$f")
+    done
   done
-done
+  echo "[INFO] Scanned $INPUT_DIR: found ${#INPUT_LIST[@]} input file(s)"
+fi
 
+# Validate: non-empty, and every explicit file actually exists.
 if [[ "${#INPUT_LIST[@]}" -eq 0 ]]; then
-  echo "ERROR: No input reads found in '$INPUT_DIR' with patterns:"
+  echo "ERROR: No input reads. Give files on the command line, set INPUT_FILES,"
+  echo "       or ensure '$INPUT_DIR' contains files matching:"
   printf '  - %s\n' "${INPUT_PATTERN[@]}"
   exit 1
 fi
 
-echo "[INFO] Found ${#INPUT_LIST[@]} input files in $INPUT_DIR"
+MISSING=0
+for f in "${INPUT_LIST[@]}"; do
+  if [[ ! -f "$f" ]]; then echo "ERROR: input file not found: $f"; MISSING=1; fi
+done
+[[ "$MISSING" -eq 0 ]] || exit 1
 echo "[INFO] Platform: PLATFORM=$PLATFORM (preset=$MM2_PRESET, mpileup -X $MPILEUP_X)"
 echo "[INFO] Parallel: SAMPLES_PARALLEL=$SAMPLES_PARALLEL, THREADS_PER_SAMPLE=$THREADS_PER_SAMPLE"
 echo "[INFO] Read filter: MIN_READ_LEN=$MIN_READ_LEN, MIN_READ_QUAL=$MIN_READ_QUAL"
