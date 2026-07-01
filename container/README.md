@@ -1,45 +1,67 @@
 # Container for the long-read pipeline
 
 One image with every tool `run_pipeline.sh` calls: **minimap2, samtools, bcftools,
-tabix/bgzip (htslib), bedtools, bedGraphToBigWig (ucsc), chopper, NanoPlot, GNU parallel**.
+tabix/bgzip (htslib), bedtools, bedGraphToBigWig (ucsc), chopper, NanoPlot, GNU parallel**,
+plus **vsearch** and **seqkit** for downstream sequence work.
 Built with micromamba + bioconda, same recipe as the `nf-dnaseq` modules.
 
-## Build & push (from your Mac)
+The cluster (Sandpit / Tokyo Slurm) has **no Docker**. Pick one of two paths:
+
+- **A. Build the `.sif` on the cluster** with Apptainer, from `longread.def` — no
+  Docker and no registry needed. Simplest.
+- **B. Build with Docker on your Mac, push to GHCR**, then pull/run on the cluster
+  via Apptainer or Pyxis. Use this if you want a shared registry image.
+
+## A. Build on the cluster (Apptainer, no Docker)
+
+```bash
+# on the Tokyo login node, from the repo root
+srun -p cpu apptainer build \
+    /mnt/lustre/containers/eit-gbi/longread-pipeline.sif \
+    container/longread.def
+# add --fakeroot after `apptainer build` if your site requires it.
+```
+
+Store the `.sif` under `/mnt/lustre/containers` (the doc's preferred spot for large
+shared images). Then run the pipeline — bind every filesystem `config.txt` touches
+(reads, reference, outdir all live under `/mnt/gbi-shared`):
+
+```bash
+srun -p cpu apptainer exec \
+    --bind /mnt/gbi-shared \
+    /mnt/lustre/containers/eit-gbi/longread-pipeline.sif \
+    bash run_pipeline.sh config.txt
+```
+
+## B. Build on your Mac, push to GHCR
 
 The cluster is x86_64, so the image is always built for `linux/amd64`.
 
 ```bash
-# build locally (amd64, runs under emulation on Apple Silicon)
-container/build.sh
-
-# build + push to GHCR (log in first: echo $PAT | docker login ghcr.io -u <user> --password-stdin)
-container/build.sh --push
+container/build.sh                 # build locally (amd64, emulated on Apple Silicon)
+container/build.sh --push          # build + push to GHCR
+# log in first: echo $PAT | docker login ghcr.io -u <user> --password-stdin
 ```
 
-Override the tag with `IMAGE=ghcr.io/eit-gbi/longread-pipeline:v1 container/build.sh`.
+Override the tag with `IMAGE=ghcr.io/eit-gbi/longread-pipeline:v1 container/build.sh --push`.
+Make the GHCR package **public**, or the cluster needs registry credentials to pull.
 
-## Run on the cluster (Apptainer)
-
-Apptainer pulls OCI images straight from GHCR and caches a `.sif`. Point the cache at
-the same dir your Nextflow profile uses:
+Then on the cluster, either flavour works:
 
 ```bash
-export APPTAINER_CACHEDIR=/mnt/gbi-shared/home/cristian-eitgbi/singularity_cache
+# Apptainer: pulls the OCI image and caches a .sif under scratch
+export APPTAINER_CACHEDIR="$HOME/scratch/apptainer-cache"
+srun -p cpu apptainer exec --bind /mnt/gbi-shared \
+    docker://ghcr.io/eit-gbi/longread-pipeline:latest \
+    bash run_pipeline.sh config.txt
 
-# one-off pull -> .sif (optional; exec will pull on first use too)
-apptainer pull "$APPTAINER_CACHEDIR/longread-pipeline.sif" \
-    docker://ghcr.io/eit-gbi/longread-pipeline:latest
-
-# run the whole pipeline inside the container.
-# --bind every filesystem your config.txt touches (reads, reference, outdir).
-apptainer exec \
-    --bind /mnt/gbi-shared \
-    "$APPTAINER_CACHEDIR/longread-pipeline.sif" \
+# Pyxis/Enroot: note the host#path syntax and explicit mounts/workdir
+srun -p cpu \
+    --container-image="ghcr.io#eit-gbi/longread-pipeline:latest" \
+    --container-mounts=/mnt/gbi-shared:/mnt/gbi-shared \
+    --container-workdir="$PWD" \
     bash run_pipeline.sh config.txt
 ```
-
-If your data and repo live under different roots, bind each one, e.g.
-`--bind /mnt/gbi-shared --bind /scratch`.
 
 ## One pipeline tweak needed
 

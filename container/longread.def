@@ -1,0 +1,42 @@
+# Apptainer definition — cluster-native build (no Docker required).
+# Mirrors container/Dockerfile. Build on the cluster with:
+#   apptainer build longread.sif container/longread.def
+# (add --fakeroot if your site requires it for unprivileged builds)
+Bootstrap: docker
+From: mambaorg/micromamba:1.5.8
+
+%post
+    export MAMBA_ROOT_PREFIX=/opt/conda
+    micromamba install -y -n base -c bioconda -c conda-forge \
+        minimap2=2.30 \
+        samtools=1.23.1 \
+        bcftools=1.23.1 \
+        htslib \
+        bedtools=2.31.1 \
+        ucsc-bedgraphtobigwig \
+        chopper=0.9.0 \
+        nanoplot=1.44.1 \
+        python-kaleido=0.2.1 \
+        vsearch \
+        seqkit \
+        parallel \
+        procps-ng
+    micromamba clean --all --yes
+
+    # sanity-check every tool the pipeline invokes
+    export PATH=/opt/conda/bin:$PATH
+    for t in minimap2 samtools bcftools tabix bgzip bedtools bedGraphToBigWig \
+             chopper NanoPlot vsearch seqkit parallel; do
+        command -v "$t" >/dev/null || { echo "MISSING: $t" >&2; exit 1; }
+    done
+    NanoPlot --version >/dev/null
+    echo "ok" | parallel echo >/dev/null
+    echo "All pipeline tools present and runnable."
+
+%environment
+    export PATH=/opt/conda/bin:$PATH
+    export LC_ALL=C.UTF-8
+    export LANG=C.UTF-8
+
+%runscript
+    exec bash "$@"

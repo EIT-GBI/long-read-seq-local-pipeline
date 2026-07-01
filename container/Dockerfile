@@ -22,7 +22,11 @@ RUN micromamba install -y -n base -c bioconda -c conda-forge \
         ucsc-bedgraphtobigwig \
         chopper=0.9.0 \
         nanoplot=1.44.1 \
+        python-kaleido=0.2.1 \
+        vsearch \
+        seqkit \
         parallel \
+        procps-ng \
     && micromamba clean --all --yes
 
 ENV PATH=/opt/conda/bin:$PATH \
@@ -30,13 +34,16 @@ ENV PATH=/opt/conda/bin:$PATH \
     LANG=C.UTF-8
 
 LABEL org.opencontainers.image.title="long-read-seq-local-pipeline" \
-      org.opencontainers.image.description="minimap2, samtools, bcftools, htslib/tabix, bedtools, bedGraphToBigWig, chopper, NanoPlot, GNU parallel" \
+      org.opencontainers.image.description="minimap2, samtools, bcftools, htslib/tabix, bedtools, bedGraphToBigWig, chopper, NanoPlot, vsearch, seqkit, GNU parallel" \
       org.opencontainers.image.source="https://github.com/EIT-GBI/ngs-seq-local-pipeline"
 
-# Sanity-check that every tool the pipeline invokes is on PATH at build time.
-RUN for t in minimap2 samtools bcftools tabix bgzip bedtools bedGraphToBigWig chopper NanoPlot parallel; do \
+# Sanity-check at build time: every tool on PATH, and the two that can break at
+# import/runtime (NanoPlot's kaleido dep, parallel's need for `ps`) actually run.
+RUN for t in minimap2 samtools bcftools tabix bgzip bedtools bedGraphToBigWig chopper NanoPlot vsearch seqkit parallel; do \
         command -v "$t" >/dev/null || { echo "MISSING: $t" >&2; exit 1; }; \
     done \
-    && echo "All pipeline tools present."
+    && NanoPlot --version >/dev/null \
+    && echo "ok" | parallel echo >/dev/null \
+    && echo "All pipeline tools present and runnable."
 
 CMD ["bash"]
