@@ -1,0 +1,59 @@
+# Add info about your sample
+
+# Sample name
+SAMPLE=bc2026
+
+# Sequencing platform: nanopore | pacbio-hifi
+#   nanopore     -> minimap2 preset map-ont,  bcftools mpileup -X ont
+#   pacbio-hifi  -> minimap2 preset map-hifi, bcftools mpileup -X pacbio-ccs
+PLATFORM=pacbio-hifi
+
+# Input folder containing reads.
+#   nanopore     -> FASTQ (.fastq/.fq[.gz])
+#   pacbio-hifi  -> unaligned BAM (.bam) from CCS, or FASTQ
+# INPUT_DIR=/mnt/lustre/shared/instrument-data-testbed/instrument-data-pacbio-revio/r84334_20260624_154509/1_C01/hifi_reads/
+
+# To run only SPECIFIC files instead of scanning INPUT_DIR, either:
+#   a) list them here (absolute or relative paths; may span folders), or
+#   b) pass them on the command line:  run_pipeline.sh config.txt a.bam b.bam
+# Command-line files take precedence; INPUT_FILES takes precedence over INPUT_DIR.
+# Leave empty (or commented) to scan INPUT_DIR with INPUT_PATTERN.
+# INPUT_FILES=(
+#   /mnt/lustre/.../1_A01/hifi_reads/m84334_260624_155232_s1.hifi_reads.bc2018.bam
+#   /mnt/lustre/.../1_C01/hifi_reads/m84334_260624_155232_s1.hifi_reads.bc2019.bam
+# )
+
+INPUT_FILES=(
+  /mnt/lustre/shared/instrument-data-testbed/instrument-data-pacbio-revio/r84334_20260624_154509/1_B01/hifi_reads/m84334_260624_175518_s2.hifi_reads.bc2026.bam
+)
+
+# Output folder to store results
+OUTPUT_DIR=/mnt/gbi-shared/home/cristian-soitu/data/pacbio/r84334_20260624_154509/bc2026_results/
+
+# Reference genome file
+REFERENCE_GENOME=/mnt/gbi-shared/home/cristian-soitu/data/references/plasmids/pFR494_pRT300_rham_wt.fa
+
+# Parameters
+THREADS=8
+MIN_MAPQ=20
+MIN_QUAL=20
+MIN_DEPTH=10
+
+# Long-read pre-alignment filtering (chopper)
+MIN_READ_LEN=1000   # drop reads shorter than this (bp)
+MIN_READ_QUAL=10    # drop reads with mean quality below this (Phred)
+
+THREADS_PER_SAMPLE=4
+SAMPLES_PARALLEL=4
+SORT_MEM=512M
+
+# Input file patterns (single-end long reads + uBAM). No R2.
+INPUT_PATTERN=(
+  "*.fastq.gz"
+  "*.fastq"
+  "*.fq.gz"
+  "*.fq"
+  "*.bam"
+)
+
+RUN_NANOPLOT=1
