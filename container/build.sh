@@ -12,15 +12,14 @@ PUSH=0
 
 # This script builds with Docker/buildx and is meant to run on a machine that
 # HAS Docker (e.g. your Mac). The Sandpit cluster has no Docker — build the .sif
-# there with Apptainer instead (no registry needed):
-#   srun -p cpu apptainer build \
-#     /mnt/lustre/containers/eit-gbi/longread-pipeline.sif container/longread.def
+# there with Apptainer instead (no registry needed); see container/README.md (A).
 if ! command -v docker >/dev/null 2>&1; then
   echo "ERROR: 'docker' not found." >&2
   echo "  - On your Mac: install/start Docker Desktop, then re-run this script." >&2
   echo "  - On the Sandpit cluster (no Docker): build the .sif with Apptainer:" >&2
-  echo "      srun -p cpu apptainer build \\" >&2
-  echo "        /mnt/lustre/containers/eit-gbi/longread-pipeline.sif container/longread.def" >&2
+  echo "      mkdir -p \"\$HOME/scratch/containers\"" >&2
+  echo "      srun -p cpu apptainer build --ignore-fakeroot-command \\" >&2
+  echo "        \"\$HOME/scratch/containers/longread-pipeline.sif\" container/longread.def" >&2
   exit 1
 fi
 

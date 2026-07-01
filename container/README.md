@@ -16,11 +16,26 @@ The cluster (Sandpit / Tokyo Slurm) has **no Docker**. Pick one of two paths:
 
 ```bash
 # on the Tokyo login node, from the repo root
-srun -p cpu apptainer build \
-    /mnt/lustre/containers/eit-gbi/longread-pipeline.sif \
+mkdir -p "$HOME/scratch/containers"
+srun -p cpu apptainer build --ignore-fakeroot-command \
+    "$HOME/scratch/containers/longread-pipeline.sif" \
     container/longread.def
-# add --fakeroot after `apptainer build` if your site requires it.
 ```
+
+Two Sandpit-specific gotchas are baked into that command:
+
+- **`--ignore-fakeroot-command`** — the login node isn't in `/etc/subuid`, so
+  Apptainer injects the host's `libfakeroot.so` (built against GLIBC_2.38) into the
+  Debian-12 base (GLIBC 2.36) and the build dies with `GLIBC_2.38 not found`. Our
+  `%post` only runs `micromamba install` into `/opt/conda`, which doesn't need
+  fakeroot, so skipping it is safe.
+- **Write to a path you own** (`$HOME/scratch/...`). `/mnt/lustre/containers/...` is
+  admin-managed and not user-writable — building straight there fails at the final
+  step with `permission denied` (the build itself succeeds; only the SIF write
+  fails). To make it a *shared* image, build to scratch, then ask the cluster admins
+  to place the finished `.sif` under `/mnt/lustre/containers/eit-gbi/`.
+
+If the build still fails, use the registry-free Docker route below (D).
 
 Store the `.sif` under `/mnt/lustre/containers` (the doc's preferred spot for large
 shared images). Then run the pipeline — bind every filesystem `config.txt` touches
@@ -29,7 +44,7 @@ shared images). Then run the pipeline — bind every filesystem `config.txt` tou
 ```bash
 srun -p cpu apptainer exec \
     --bind /mnt/gbi-shared \
-    /mnt/lustre/containers/eit-gbi/longread-pipeline.sif \
+    "$HOME/scratch/containers/longread-pipeline.sif" \
     bash run_pipeline.sh config.txt
 ```
 
@@ -62,6 +77,77 @@ srun -p cpu \
     --container-workdir="$PWD" \
     bash run_pipeline.sh config.txt
 ```
+
+## D. Registry-free: Docker on Mac → .sif on cluster
+
+If the cluster fakeroot build (A) fails and you don't want to use GHCR, ship the
+image as a tarball. Building the `.sif` from a Docker archive runs **no `%post`**,
+so there's no fakeroot/glibc problem.
+
+```bash
+# on your Mac (image already built by container/build.sh)
+docker save ghcr.io/eit-gbi/longread-pipeline:latest | gzip > longread-pipeline.tar.gz
+scp longread-pipeline.tar.gz sandpit-tokyo-login:'~/scratch/containers/'
+
+# on the cluster
+mkdir -p "$HOME/scratch/containers"
+srun -p cpu apptainer build \
+    "$HOME/scratch/containers/longread-pipeline.sif" \
+    docker-archive:"$HOME/scratch/containers/longread-pipeline.tar.gz"
+```
+
+Then run it exactly as in section A.
+
+## Interactive use
+
+For poking around, testing commands by hand, or debugging the reference/mapping
+before committing to a full run, drop into a shell **inside** the container. Do it
+on a compute node (via `srun --pty`), not the login node.
+
+### Apptainer (from the `.sif`)
+
+```bash
+# allocate an interactive CPU session and open a shell in the container
+srun -p cpu --pty apptainer shell \
+    --bind /mnt/gbi-shared \
+    "$HOME/scratch/containers/longread-pipeline.sif"
+```
+
+You land at an `Apptainer>` prompt with every tool on `$PATH` and your bound
+filesystems visible. Your current directory is preserved, so you can work straight
+from the repo:
+
+```text
+Apptainer> cd ~/code/long-read-seq-local-pipeline
+Apptainer> minimap2 --version
+Apptainer> samtools view -H /mnt/gbi-shared/.../hifi_reads/....bam | head
+Apptainer> seqkit stats /mnt/gbi-shared/.../reads.fastq
+# run the whole pipeline, or just paste individual steps to experiment
+Apptainer> bash run_pipeline.sh config.txt
+Apptainer> exit
+```
+
+Ask for more resources on the interactive session as needed, e.g.
+`srun -p cpu -c 8 --mem=16G --pty apptainer shell --bind /mnt/gbi-shared <sif>`.
+
+Bind extra roots with repeated `--bind` (e.g. `--bind /mnt/gbi-shared --bind /mnt/lustre`).
+
+### Pyxis/Enroot (from a registry image)
+
+```bash
+srun -p cpu --pty \
+    --container-image="ghcr.io#eit-gbi/longread-pipeline:latest" \
+    --container-mounts=/mnt/gbi-shared:/mnt/gbi-shared \
+    --container-workdir="$PWD" \
+    bash
+```
+
+This opens a normal `bash` prompt inside the container. First launch imports the
+image (slower); reruns on the same warm worker are fast.
+
+> Tip: an interactive shell is the quickest way to settle the reference question —
+> mount the reads + candidate references and try `minimap2`/`seqkit`/`vsearch` by
+> hand until reads map, then bake the winning reference into `config.txt`.
 
 ## One pipeline tweak needed
 
