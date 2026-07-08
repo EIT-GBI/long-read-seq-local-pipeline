@@ -1,0 +1,6 @@
+BAM=/Users/cristian.soitu/Data/KhoaChung/bc2027_result/bam/m84334_260624_195807_s3.hifi_reads.bc2027.sorted.bam
+CTG=pFR494_pRT300_rham_wt
+OUT=/Users/cristian.soitu/Data/KhoaChung/bc2027_result/bam/bc2027.DNAP_1790_3448
+
+
+printf "%s\t0\t1789\n%s\t3448\t8514\n" "$CTG" "$CTG" > flanks.bed
