@@ -1,0 +1,7 @@
+Exit code 1
+pFR494_pRT300_rham_wt	0	1789
+pFR494_pRT300_rham_wt	3448	8514
+=== full 3-stage trim, stderr visible ===
+[E::bgzf_read] Read block operation failed with error 4 after 0 of 4 bytes
+samtools sort: truncated file. Aborting
+PIPESTATUS: 141 138 1  final exit 1

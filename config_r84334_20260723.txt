@@ -1,0 +1,62 @@
+# Run config: r84334_20260723 (Kim), 12 barcodes bc2029..bc2040
+# Usage (on the cluster, inside the container):
+#   cd ~/code/long-read-seq-local-pipeline
+#   srun -p cpu -c 16 --mem=32G apptainer exec --bind /mnt/gbi-shared \
+#     "$HOME/scratch/containers/longread-pipeline.sif" \
+#     bash run_pipeline.sh config_r84334_20260723.txt
+
+# Sample name (informational; per-file names are derived from the BAM basenames)
+SAMPLE=r84334_20260723
+
+# Sequencing platform: nanopore | pacbio-hifi
+PLATFORM=pacbio-hifi
+
+# Not used when INPUT_FILES is set (kept for reference).
+# INPUT_DIR=
+
+# Explicit input BAMs (uBAM/CCS). One per barcode, across 1_C01 / 1_D01 / 2_D01.
+INPUT_FILES=(
+  /mnt/gbi-shared/home/kim-eitgbi/Sharing/r84334_20260723_165540/1_D01/hifi_reads/m84334_260723_170431_s4.hifi_reads.bc2029.bam
+  /mnt/gbi-shared/home/kim-eitgbi/Sharing/r84334_20260723_165540/1_D01/hifi_reads/m84334_260723_170431_s4.hifi_reads.bc2030.bam
+  /mnt/gbi-shared/home/kim-eitgbi/Sharing/r84334_20260723_165540/2_D01/hifi_reads/m84334_260723_170431_s4.hifi_reads.bc2031.bam
+  /mnt/gbi-shared/home/kim-eitgbi/Sharing/r84334_20260723_165540/2_D01/hifi_reads/m84334_260723_170431_s4.hifi_reads.bc2032.bam
+  /mnt/gbi-shared/home/kim-eitgbi/Sharing/r84334_20260723_165540/1_C01/hifi_reads/m84334_260723_170431_s4.hifi_reads.bc2033.bam
+  /mnt/gbi-shared/home/kim-eitgbi/Sharing/r84334_20260723_165540/1_D01/hifi_reads/m84334_260723_170431_s4.hifi_reads.bc2034.bam
+  /mnt/gbi-shared/home/kim-eitgbi/Sharing/r84334_20260723_165540/2_D01/hifi_reads/m84334_260723_170431_s4.hifi_reads.bc2035.bam
+  /mnt/gbi-shared/home/kim-eitgbi/Sharing/r84334_20260723_165540/2_D01/hifi_reads/m84334_260723_170431_s4.hifi_reads.bc2036.bam
+  /mnt/gbi-shared/home/kim-eitgbi/Sharing/r84334_20260723_165540/1_C01/hifi_reads/m84334_260723_170431_s4.hifi_reads.bc2037.bam
+  /mnt/gbi-shared/home/kim-eitgbi/Sharing/r84334_20260723_165540/1_C01/hifi_reads/m84334_260723_170431_s4.hifi_reads.bc2038.bam
+  /mnt/gbi-shared/home/kim-eitgbi/Sharing/r84334_20260723_165540/1_C01/hifi_reads/m84334_260723_170431_s4.hifi_reads.bc2039.bam
+  /mnt/gbi-shared/home/kim-eitgbi/Sharing/r84334_20260723_165540/1_D01/hifi_reads/m84334_260723_170431_s4.hifi_reads.bc2040.bam
+)
+
+# Output folder (all 12 samples share it; files are named per barcode, e.g. bc2033.sorted.bam)
+OUTPUT_DIR=/mnt/gbi-shared/home/cristian-soitu/data/pacbio/r84334_20260723_165540/results/
+
+# Reference genome file
+REFERENCE_GENOME=/mnt/gbi-shared/home/cristian-soitu/data/references/plasmids/pFR494_pRT300_rham_wt.fa
+
+# Parameters
+THREADS=8
+MIN_MAPQ=20
+MIN_QUAL=20
+MIN_DEPTH=10
+
+# Long-read pre-alignment filtering (chopper)
+MIN_READ_LEN=1000   # drop reads shorter than this (bp)
+MIN_READ_QUAL=10    # drop reads with mean quality below this (Phred)
+
+THREADS_PER_SAMPLE=4
+SAMPLES_PARALLEL=4
+SORT_MEM=512M
+
+# Input file patterns (only used if INPUT_FILES is empty and INPUT_DIR is scanned).
+INPUT_PATTERN=(
+  "*.fastq.gz"
+  "*.fastq"
+  "*.fq.gz"
+  "*.fq"
+  "*.bam"
+)
+
+RUN_NANOPLOT=1

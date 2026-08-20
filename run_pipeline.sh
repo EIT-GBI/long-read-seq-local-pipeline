@@ -84,7 +84,9 @@ fi
 
 BEDGRAPHTOBIGWIG="bedGraphToBigWig"
 
-# Helper: derive sample name by stripping read/archive extensions
+# Helper: derive sample name by stripping read/archive extensions.
+# PacBio demux files end in .bcNNNN -> use just that barcode as the sample name
+# (e.g. m84334_..._s4.hifi_reads.bc2033.bam -> bc2033). Otherwise keep the full stem.
 get_sample_name() {
   local b
   b="$(basename "$1")"
@@ -92,7 +94,11 @@ get_sample_name() {
   b="${b%.fastq}"
   b="${b%.fq}"
   b="${b%.bam}"
-  echo "$b"
+  if [[ "$b" =~ (bc[0-9]+)$ ]]; then
+    echo "${BASH_REMATCH[1]}"
+  else
+    echo "$b"
+  fi
 }
 
 # Process one sample function
